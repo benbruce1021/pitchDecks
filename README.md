@@ -64,3 +64,12 @@ That API route forwards the same JSON to `MAKE_WEBHOOK_URL`:
 ```
 
 Important: file binaries are uploaded directly to Google Drive and are **not** sent to Make.com.
+
+## 5) Webhook response handling
+
+The app now passes through Make's webhook response status/body and shows the returned
+`message` in the UI. This supports patterns like:
+
+- `200` + `{"ok": true, "message": "Scenario completed. Email sent."}`
+- `202` + `{"ok": true, "message": "Received. Working on it now."}`
+- `500` + `{"ok": false, "message": "Scenario failed before sending email."}`

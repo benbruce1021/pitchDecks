@@ -9,6 +9,12 @@ import {
 } from "../lib/googleDrive";
 
 type UploadProgressMap = Record<string, number>;
+type SubmitApiResponse = {
+  ok?: boolean;
+  message?: string;
+  error?: string;
+  makeStatus?: number;
+};
 
 const ACCEPTED_FILE_TYPES =
   ".pdf,.docx,.pptx,.png,.jpg,.jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/png,image/jpeg";
@@ -124,15 +130,22 @@ export default function HomePage() {
         }),
       });
 
+      const submitBody = (await submitResponse
+        .json()
+        .catch(() => null)) as SubmitApiResponse | null;
+
       if (!submitResponse.ok) {
-        const errorBody = await submitResponse.json().catch(() => null);
         const errorMessage =
-          (errorBody && typeof errorBody.error === "string" && errorBody.error) ||
+          (submitBody && typeof submitBody.message === "string" && submitBody.message) ||
+          (submitBody && typeof submitBody.error === "string" && submitBody.error) ||
           `Server returned ${submitResponse.status}.`;
         throw new Error(errorMessage);
       }
 
-      setStatus("Submitted successfully");
+      const successMessage =
+        (submitBody && typeof submitBody.message === "string" && submitBody.message) ||
+        "Submitted successfully";
+      setStatus(successMessage);
       setContext("");
       setFiles([]);
       setProgressByFile({});

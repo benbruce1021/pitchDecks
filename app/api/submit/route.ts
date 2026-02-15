@@ -13,6 +13,13 @@ type SubmitPayload = {
   files: SubmittedFile[];
 };
 
+type WebhookResponseBody = {
+  ok?: boolean;
+  message?: string;
+  error?: string;
+  [key: string]: unknown;
+};
+
 function isValidPayload(payload: unknown): payload is SubmitPayload {
   if (!payload || typeof payload !== "object") {
     return false;
@@ -47,7 +54,7 @@ export async function POST(request: Request) {
   const webhookUrl = process.env.MAKE_WEBHOOK_URL;
   if (!webhookUrl) {
     return NextResponse.json(
-      { error: "MAKE_WEBHOOK_URL is not configured." },
+      { ok: false, message: "MAKE_WEBHOOK_URL is not configured." },
       { status: 500 }
     );
   }
@@ -56,12 +63,18 @@ export async function POST(request: Request) {
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, message: "Invalid JSON body." },
+      { status: 400 }
+    );
   }
 
   if (!isValidPayload(payload)) {
     return NextResponse.json(
-      { error: "Invalid payload. Expected context, driveFolderId, and files." },
+      {
+        ok: false,
+        message: "Invalid payload. Expected context, driveFolderId, and files.",
+      },
       { status: 400 }
     );
   }
@@ -77,25 +90,39 @@ export async function POST(request: Request) {
       cache: "no-store",
     });
 
-    if (!makeResponse.ok) {
-      const makeBody = await makeResponse.text();
-      return NextResponse.json(
-        {
-          error: "Failed to forward request to Make.",
-          makeStatus: makeResponse.status,
-          makeBody,
-        },
-        { status: 502 }
-      );
+    const responseText = await makeResponse.text();
+    let makeBody: WebhookResponseBody | null = null;
+
+    try {
+      makeBody = responseText ? (JSON.parse(responseText) as WebhookResponseBody) : null;
+    } catch {
+      makeBody = null;
     }
 
-    return NextResponse.json({ ok: true, makeStatus: makeResponse.status });
+    const messageFromMake =
+      (makeBody && typeof makeBody.message === "string" && makeBody.message) ||
+      (makeBody && typeof makeBody.error === "string" && makeBody.error) ||
+      responseText ||
+      (makeResponse.ok
+        ? "Submitted successfully."
+        : "Make webhook returned an error.");
+
+    return NextResponse.json(
+      {
+        ok: makeResponse.ok,
+        message: messageFromMake,
+        makeStatus: makeResponse.status,
+        makeBody,
+      },
+      { status: makeResponse.status }
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown forwarding error.";
     return NextResponse.json(
       {
-        error: "Could not reach Make webhook.",
+        ok: false,
+        message: "Could not reach Make webhook.",
         details: message,
       },
       { status: 502 }
