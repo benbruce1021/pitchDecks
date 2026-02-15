@@ -6,3 +6,4 @@ vite.config.d.ts
 .next
 out
 .env.local
+.env
