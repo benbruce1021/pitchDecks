@@ -78,7 +78,7 @@ export default function HomePage() {
     }
 
     setIsSubmitting(true);
-    setStatus("Authenticating...");
+    setStatus("Request accepted (202) - Processing your pitch deck...");
 
     try {
       const token =
@@ -205,7 +205,7 @@ export default function HomePage() {
           </button>
         </form>
 
-        <p className="status">{status || "Ready"}</p>
+        {status && <p className="status">{status}</p>}
 
         {files.length > 0 && (
           <ul className="progress-list">
